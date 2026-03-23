@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>SpotFinder</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #06080c;
+    --surface: #0f1219;
+    --surface-2: #171c26;
+    --surface-3: #1e2432;
+    --border: #262d3d;
+    --border-light: #333c50;
+    --text: #eaecf2;
+    --text-mid: #a0a8bc;
+    --text-dim: #5c6478;
+    --accent: #38bdf8;
+    --accent-soft: rgba(56, 189, 248, 0.12);
+    --accent-glow: rgba(56, 189, 248, 0.25);
+    --green: #4ade80;
+    --green-soft: rgba(74, 222, 128, 0.12);
+    --green-glow: rgba(74, 222, 128, 0.3);
+    --orange: #fb923c;
+    --red: #f87171;
+    --purple: #a78bfa;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; width:100%; font-family:'Outfit',sans-serif; background:var(--bg); color:var(--text); overflow:hidden; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column; transition: opacity 0.35s, transform 0.35s; }
+  .screen.hidden { opacity:0; pointer-events:none; transform:translateY(20px); }
+
+  /* ═══ SCREEN 1: Venue Selection ═══ */
+  #screen-venue { padding:20px; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+  .venue-header { margin-bottom:24px; padding-top:8px; }
+  .venue-header h1 {
+    font-size:28px; font-weight:800; letter-spacing:-1px; line-height:1.1;
+    background:linear-gradient(135deg, var(--accent), #818cf8);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    margin-bottom:6px;
+  }
+  .venue-header p { color:var(--text-dim); font-size:14px; line-height:1.5; }
+
+  .search-box { position:relative; margin-bottom:20px; }
+  .search-box input {
+    width:100%; padding:14px 16px 14px 44px;
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:14px; color:var(--text); font-family:inherit; font-size:15px;
+    outline:none; transition:border-color 0.2s;
+  }
+  .search-box input:focus { border-color:var(--accent); }
+  .search-box input::placeholder { color:var(--text-dim); }
+  .search-icon { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--text-dim); font-size:18px; }
+
+  .categories { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+  .cat-pill {
+    padding:8px 14px; border-radius:20px; font-size:13px; font-weight:500;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-mid);
+    cursor:pointer; transition:all 0.2s; white-space:nowrap;
+    display:flex; align-items:center; gap:6px;
+  }
+  .cat-pill:hover, .cat-pill.active { background:var(--accent-soft); border-color:var(--accent); color:var(--accent); }
+
+  .venue-list { display:flex; flex-direction:column; gap:10px; padding-bottom:40px; }
+
+  .venue-card {
+    background:var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:16px; cursor:pointer; transition:all 0.2s;
+    display:flex; gap:14px; align-items:center;
+  }
+  .venue-card:hover { border-color:var(--border-light); background:var(--surface-2); }
+  .venue-card:active { transform:scale(0.98); }
+
+  .venue-emoji {
+    width:48px; height:48px; border-radius:12px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; flex-shrink:0;
+  }
+  .venue-info { flex:1; min-width:0; }
+  .venue-name { font-weight:600; font-size:15px; margin-bottom:2px; }
+  .venue-location { font-size:12px; color:var(--text-dim); margin-bottom:4px; }
+  .venue-dims {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim);
+    background:var(--surface-2); padding:3px 8px; border-radius:6px; display:inline-block;
+  }
+  .venue-arrow { color:var(--text-dim); font-size:20px; flex-shrink:0; }
+
+  .custom-venue-btn {
+    background:var(--surface); border:2px dashed var(--border);
+    border-radius:16px; padding:20px; text-align:center; cursor:pointer;
+    transition:all 0.2s; margin-top:4px;
+  }
+  .custom-venue-btn:hover { border-color:var(--accent); background:var(--accent-soft); }
+  .custom-venue-btn .icon { font-size:28px; margin-bottom:6px; }
+  .custom-venue-btn .label { font-weight:600; font-size:14px; }
+  .custom-venue-btn .sub { font-size:12px; color:var(--text-dim); margin-top:2px; }
+
+  /* ═══ Custom Modal ═══ */
+  #custom-modal {
+    position:absolute; inset:0; z-index:200;
+    background:rgba(0,0,0,0.7); backdrop-filter:blur(8px);
+    display:flex; align-items:flex-end; justify-content:center;
+    transition:opacity 0.3s;
+  }
+  #custom-modal.hidden { opacity:0; pointer-events:none; }
+  .modal-sheet {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:20px 20px 0 0; padding:24px; width:100%; max-width:480px;
+    transform:translateY(0); transition:transform 0.35s cubic-bezier(.16,1,.3,1);
+  }
+  #custom-modal.hidden .modal-sheet { transform:translateY(100%); }
+  .modal-handle { width:36px; height:4px; background:var(--border-light); border-radius:2px; margin:0 auto 18px; }
+  .modal-title { font-weight:700; font-size:18px; margin-bottom:16px; }
+
+  .field-group { margin-bottom:14px; }
+  .field-label { font-size:12px; color:var(--text-dim); margin-bottom:6px; font-weight:500; text-transform:uppercase; letter-spacing:0.5px; }
+  .field-row { display:flex; gap:10px; }
+  .field-input {
+    flex:1; padding:12px 14px;
+    background:var(--surface-2); border:1px solid var(--border);
+    border-radius:12px; color:var(--text); font-family:inherit; font-size:15px;
+    outline:none; transition:border-color 0.2s;
+  }
+  .field-input:focus { border-color:var(--accent); }
+
+  /* ═══ SCREEN 2: Map ═══ */
+  #screen-map { flex-direction:column; }
+
+  canvas#venue-canvas { flex:1; width:100%; display:block; touch-action:none; cursor:crosshair; }
+
+  #map-topbar {
+    position:absolute; top:0; left:0; right:0; z-index:100;
+    padding:12px 16px;
+    background:linear-gradient(to bottom, var(--bg) 60%, transparent);
+    pointer-events:none;
+  }
+  #map-topbar > * { pointer-events:auto; }
+
+  .map-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+  .back-btn {
+    width:36px; height:36px; border-radius:10px;
+    background:var(--surface); border:1px solid var(--border);
+    color:var(--text); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:18px; transition:all 0.2s; flex-shrink:0;
+  }
+  .back-btn:hover { background:var(--surface-2); }
+  .map-venue-name { font-weight:600; font-size:15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .map-venue-dims { font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim); }
+
+  #info-ribbon {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:8px 12px;
+    display:flex; align-items:center; gap:8px;
+    font-family:'DM Mono',monospace; font-size:11px;
+  }
+  .ribbon-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; animation:blink 2s infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .ribbon-dot.blue { background:var(--accent); box-shadow:0 0 6px var(--accent); }
+  .ribbon-dot.green { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .ribbon-dot.orange { background:var(--orange); box-shadow:0 0 6px var(--orange); animation-duration:0.8s; }
+  #ribbon-text { color:var(--text-dim); }
+  #ribbon-value { margin-left:auto; color:var(--text-mid); }
+
+  /* ═══ Bottom Panel ═══ */
+  #map-panel {
+    position:absolute; bottom:0; left:0; right:0; z-index:100;
+    padding:0 16px 20px;
+    background:linear-gradient(to top, var(--bg) 65%, transparent);
+    pointer-events:none;
+  }
+  #map-panel > * { pointer-events:auto; }
+
+  #nav-hud {
+    display:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:16px; padding:16px; margin-bottom:10px; text-align:center;
+  }
+  #nav-hud.active { display:block; animation:slideUp 0.4s cubic-bezier(.16,1,.3,1); }
+  @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+  .compass-wrap { width:120px; height:120px; margin:0 auto 10px; position:relative; }
+  .compass-outer {
+    width:100%; height:100%; border-radius:50%; border:2px solid var(--border);
+    position:relative; display:flex; align-items:center; justify-content:center;
+  }
+  .compass-n { position:absolute; top:6px; left:50%; transform:translateX(-50%); font-family:'DM Mono',monospace; font-size:9px; color:var(--text-dim); }
+  .arrow-shaft {
+    position:absolute; top:50%; left:50%;
+    width:4px; height:44px;
+    transform-origin:bottom center;
+    transform:translate(-50%,-100%) rotate(0deg);
+    transition:transform 0.25s cubic-bezier(.16,1,.3,1);
+  }
+  .arrow-shaft::before {
+    content:''; position:absolute; top:0; left:50%; transform:translateX(-50%);
+    border-left:7px solid transparent; border-right:7px solid transparent;
+    border-bottom:16px solid var(--accent);
+    filter:drop-shadow(0 0 5px var(--accent-glow));
+  }
+  .arrow-shaft::after {
+    content:''; position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    width:2px; height:28px;
+    background:linear-gradient(to bottom, var(--accent), transparent);
+  }
+  .compass-dot { width:8px; height:8px; border-radius:50%; background:var(--accent); box-shadow:0 0 10px var(--accent-glow); z-index:2; }
+
+  .nav-dist { font-family:'DM Mono',monospace; font-size:40px; font-weight:500; letter-spacing:-2px; line-height:1; margin-bottom:2px; }
+  .nav-dist .u { font-size:18px; color:var(--text-dim); letter-spacing:0; }
+  .nav-sub { font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+  .nav-hint { font-family:'DM Mono',monospace; font-size:11px; color:var(--text-dim); }
+  .arrived { display:none; padding:10px; background:var(--green-soft); border:1px solid var(--green); border-radius:10px; color:var(--green); font-weight:600; font-size:14px; margin-top:10px; }
+  .arrived.show { display:block; animation:pulseG 1.5s infinite; }
+  @keyframes pulseG { 0%,100%{box-shadow:0 0 0 0 rgba(74,222,128,0.3)} 50%{box-shadow:0 0 16px 2px rgba(74,222,128,0.1)} }
+
+  #saved-bar {
+    display:none; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:8px 12px; margin-bottom:10px;
+    font-family:'DM Mono',monospace; font-size:11px;
+    align-items:center; gap:8px;
+  }
+  #saved-bar.visible { display:flex; }
+  .saved-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 6px var(--green); flex-shrink:0; }
+  #saved-label { color:var(--text-dim); }
+  #saved-detail { margin-left:auto; color:var(--green); }
+
+  .btn-row { display:flex; gap:10px; }
+  .btn {
+    flex:1; padding:14px; border-radius:13px; border:none; cursor:pointer;
+    font-family:'Outfit',sans-serif; font-size:14px; font-weight:600;
+    display:flex; align-items:center; justify-content:center; gap:7px;
+    transition:all 0.15s; -webkit-user-select:none;
+  }
+  .btn:active { transform:scale(0.97); }
+  .btn:disabled { opacity:0.35; pointer-events:none; }
+  .btn-accent { background:var(--accent); color:var(--bg); box-shadow:0 4px 20px var(--accent-glow); }
+  .btn-green { background:var(--green); color:var(--bg); box-shadow:0 4px 20px var(--green-glow); }
+  .btn-ghost { background:var(--surface); color:var(--text); border:1px solid var(--border); }
+  .btn-red { background:rgba(248,113,113,0.1); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+  .btn svg { width:16px; height:16px; }
+
+  .phase-locate .show-mark, .phase-locate .show-nav { display:none !important; }
+  .phase-marked .show-locate, .phase-marked .show-nav { display:none !important; }
+  .phase-nav .show-locate, .phase-nav .show-mark { display:none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ═══ SCREEN 1 ═══ -->
+  <div class="screen" id="screen-venue">
+    <div class="venue-header">
+      <h1>SpotFinder</h1>
+      <p>Mark your spot at any venue. Walk away.<br>Find your way back.</p>
+    </div>
+    <div class="search-box">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="venue-search" placeholder="Search venues…" autocomplete="off">
+    </div>
+    <div class="categories" id="categories"></div>
+    <div class="venue-list" id="venue-list"></div>
+  </div>
+
+  <!-- ═══ Custom Modal ═══ -->
+  <div id="custom-modal" class="hidden">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Custom Area</div>
+      <div class="field-group">
+        <div class="field-label">Name</div>
+        <input class="field-input" id="c-name" placeholder="My Beach" value="">
+      </div>
+      <div class="field-group">
+        <div class="field-label">Dimensions (meters)</div>
+        <div class="field-row">
+          <input class="field-input" id="c-width" type="number" placeholder="Width" value="500">
+          <input class="field-input" id="c-height" type="number" placeholder="Height" value="300">
+        </div>
+      </div>
+      <div class="field-group" style="margin-top:18px">
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="c-cancel">Cancel</button>
+          <button class="btn btn-accent" id="c-create">Create Area</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCREEN 2 ═══ -->
+  <div class="screen hidden" id="screen-map">
+    <canvas id="venue-canvas"></canvas>
+
+    <div id="map-topbar">
+      <div class="map-header">
+        <button class="back-btn" id="btn-back">←</button>
+        <div style="min-width:0">
+          <div class="map-venue-name" id="map-vname"></div>
+          <div class="map-venue-dims" id="map-vdims"></div>
+        </div>
+      </div>
+      <div id="info-ribbon">
+        <div class="ribbon-dot blue" id="r-dot"></div>
+        <span id="ribbon-text">tap to place yourself on the map</span>
+        <span id="ribbon-value" style="display:none"></span>
+      </div>
+    </div>
+
+    <div id="map-panel" class="phase-locate">
+      <div id="nav-hud">
+        <div class="compass-wrap">
+          <div class="compass-outer">
+            <div class="compass-n">N</div>
+            <div class="arrow-shaft" id="arrow"></div>
+            <div class="compass-dot"></div>
+          </div>
+        </div>
+        <div class="nav-dist" id="nav-dist">—</div>
+        <div class="nav-sub">to your saved spot</div>
+        <div class="nav-hint" id="nav-hint">tap to simulate moving</div>
+        <div class="arrived" id="arrived">✓ You've arrived</div>
+      </div>
+
+      <div id="saved-bar">
+        <div class="saved-dot"></div>
+        <span id="saved-label">Spot saved</span>
+        <span id="saved-detail"></span>
+      </div>
+
+      <div class="btn-row show-locate">
+        <button class="btn btn-accent" id="btn-mark" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/></svg>
+          Mark This Spot
+        </button>
+      </div>
+      <div class="btn-row show-mark">
+        <button class="btn btn-green" id="btn-nav">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+          Navigate Back
+        </button>
+        <button class="btn btn-ghost" id="btn-clear" style="flex:0 0 52px">✕</button>
+      </div>
+      <div class="btn-row show-nav">
+        <button class="btn btn-red" id="btn-stop">Stop Navigation</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════
+// VENUE DATABASE
+// ══════════════════════════════════
+const VENUES = [
+  { id:'copacabana', name:'Copacabana Beach', loc:'Rio de Janeiro, Brazil', cat:'beach', w:4000, h:80, emoji:'🏖️', color:'#f59e0b' },
+  { id:'bondi', name:'Bondi Beach', loc:'Sydney, Australia', cat:'beach', w:1000, h:60, emoji:'🏖️', color:'#f59e0b' },
+  { id:'waikiki', name:'Waikiki Beach', loc:'Honolulu, Hawaii', cat:'beach', w:3200, h:50, emoji:'🏖️', color:'#f59e0b' },
+  { id:'maya', name:'Maya Bay', loc:'Phi Phi Islands, Thailand', cat:'beach', w:250, h:80, emoji:'🏖️', color:'#f59e0b' },
+  { id:'mykonos', name:'Paradise Beach', loc:'Mykonos, Greece', cat:'beach', w:400, h:40, emoji:'🏖️', color:'#f59e0b' },
+  { id:'navagio', name:'Navagio (Shipwreck)', loc:'Zakynthos, Greece', cat:'beach', w:200, h:100, emoji:'🏖️', color:'#f59e0b' },
+  { id:'elafonisi', name:'Elafonisi Beach', loc:'Crete, Greece', cat:'beach', w:800, h:150, emoji:'🏖️', color:'#f59e0b' },
+  { id:'barceloneta', name:'Barceloneta Beach', loc:'Barcelona, Spain', cat:'beach', w:1100, h:90, emoji:'🏖️', color:'#f59e0b' },
+  { id:'miami_south', name:'South Beach', loc:'Miami, Florida', cat:'beach', w:3600, h:100, emoji:'🏖️', color:'#f59e0b' },
+  { id:'cancun', name:'Playa Delfines', loc:'Cancún, Mexico', cat:'beach', w:1200, h:60, emoji:'🏖️', color:'#f59e0b' },
+  { id:'vouliagmeni', name:'Vouliagmeni Beach', loc:'Athens, Greece', cat:'beach', w:600, h:50, emoji:'🏖️', color:'#f59e0b' },
+
+  { id:'coachella', name:'Coachella', loc:'Indio, California', cat:'festival', w:900, h:600, emoji:'🎪', color:'#a78bfa' },
+  { id:'glastonbury', name:'Glastonbury Festival', loc:'Somerset, England', cat:'festival', w:1400, h:1000, emoji:'🎪', color:'#a78bfa' },
+  { id:'tomorrowland', name:'Tomorrowland', loc:'Boom, Belgium', cat:'festival', w:700, h:500, emoji:'🎪', color:'#a78bfa' },
+  { id:'burningman', name:'Burning Man', loc:'Black Rock, Nevada', cat:'festival', w:3200, h:3200, emoji:'🎪', color:'#a78bfa' },
+  { id:'lollapalooza', name:'Lollapalooza', loc:'Chicago, Illinois', cat:'festival', w:500, h:400, emoji:'🎪', color:'#a78bfa' },
+  { id:'primavera', name:'Primavera Sound', loc:'Barcelona, Spain', cat:'festival', w:600, h:350, emoji:'🎪', color:'#a78bfa' },
+  { id:'roskilde', name:'Roskilde Festival', loc:'Roskilde, Denmark', cat:'festival', w:800, h:600, emoji:'🎪', color:'#a78bfa' },
+  { id:'ejekt', name:'Release Athens', loc:'Athens, Greece', cat:'festival', w:400, h:250, emoji:'🎪', color:'#a78bfa' },
+
+  { id:'maracana', name:'Maracanã Stadium', loc:'Rio de Janeiro, Brazil', cat:'stadium', w:300, h:260, emoji:'🏟️', color:'#38bdf8' },
+  { id:'wembley', name:'Wembley Stadium', loc:'London, England', cat:'stadium', w:300, h:320, emoji:'🏟️', color:'#38bdf8' },
+  { id:'camp_nou', name:'Camp Nou', loc:'Barcelona, Spain', cat:'stadium', w:250, h:220, emoji:'🏟️', color:'#38bdf8' },
+  { id:'oaka', name:'OAKA Olympic Stadium', loc:'Athens, Greece', cat:'stadium', w:300, h:260, emoji:'🏟️', color:'#38bdf8' },
+  { id:'sofi', name:'SoFi Stadium', loc:'Los Angeles, California', cat:'stadium', w:320, h:280, emoji:'🏟️', color:'#38bdf8' },
+  { id:'bernabeu', name:'Santiago Bernabéu', loc:'Madrid, Spain', cat:'stadium', w:240, h:220, emoji:'🏟️', color:'#38bdf8' },
+
+  { id:'central_park', name:'Central Park', loc:'New York City', cat:'park', w:4000, h:800, emoji:'🌳', color:'#4ade80' },
+  { id:'hyde_park', name:'Hyde Park', loc:'London, England', cat:'park', w:1500, h:1000, emoji:'🌳', color:'#4ade80' },
+  { id:'retiro', name:'Retiro Park', loc:'Madrid, Spain', cat:'park', w:1400, h:700, emoji:'🌳', color:'#4ade80' },
+  { id:'zappeion', name:'National Garden', loc:'Athens, Greece', cat:'park', w:500, h:350, emoji:'🌳', color:'#4ade80' },
+  { id:'golden_gate', name:'Golden Gate Park', loc:'San Francisco', cat:'park', w:5000, h:800, emoji:'🌳', color:'#4ade80' },
+  { id:'pedion', name:'Pedion tou Areos', loc:'Athens, Greece', cat:'park', w:460, h:340, emoji:'🌳', color:'#4ade80' },
+
+  { id:'ces', name:'CES (LVCC)', loc:'Las Vegas, Nevada', cat:'expo', w:500, h:300, emoji:'🏛️', color:'#fb923c' },
+  { id:'comic_con', name:'Comic-Con', loc:'San Diego, California', cat:'expo', w:350, h:200, emoji:'🏛️', color:'#fb923c' },
+  { id:'canton_fair', name:'Canton Fair', loc:'Guangzhou, China', cat:'expo', w:1000, h:400, emoji:'🏛️', color:'#fb923c' },
+
+  { id:'disney', name:'Magic Kingdom', loc:'Orlando, Florida', cat:'theme', w:500, h:500, emoji:'🎢', color:'#f472b6' },
+  { id:'universal', name:'Universal Studios', loc:'Orlando, Florida', cat:'theme', w:400, h:400, emoji:'🎢', color:'#f472b6' },
+  { id:'disney_paris', name:'Disneyland Paris', loc:'Paris, France', cat:'theme', w:600, h:500, emoji:'🎢', color:'#f472b6' },
+
+  { id:'atl', name:'Hartsfield-Jackson', loc:'Atlanta, Georgia', cat:'airport', w:1800, h:600, emoji:'✈️', color:'#94a3b8' },
+  { id:'dxb', name:'Dubai International', loc:'Dubai, UAE', cat:'airport', w:2400, h:500, emoji:'✈️', color:'#94a3b8' },
+  { id:'ath', name:'Athens Intl (Eleftherios)', loc:'Athens, Greece', cat:'airport', w:1200, h:400, emoji:'✈️', color:'#94a3b8' },
+];
+
+const CATEGORIES = [
+  { id:'all', label:'All', icon:'✦' },
+  { id:'beach', label:'Beaches', icon:'🏖️' },
+  { id:'festival', label:'Festivals', icon:'🎪' },
+  { id:'stadium', label:'Stadiums', icon:'🏟️' },
+  { id:'park', label:'Parks', icon:'🌳' },
+  { id:'expo', label:'Expos', icon:'🏛️' },
+  { id:'theme', label:'Theme Parks', icon:'🎢' },
+  { id:'airport', label:'Airports', icon:'✈️' },
+];
+
+// ══════════════════════════════════
+// STATE
+// ══════════════════════════════════
+const S = {
+  venue:null, phase:'locate',
+  userPos:null, savedPos:null,
+  cam:{x:0,y:0,zoom:1},
+  dragging:false, dragStart:null, camStart:null, dragMoved:false,
+  pinchDist:null, pinchZoom:null,
+  canvas:null, ctx:null, animId:null,
+  canvasW:0, canvasH:0,
+  lastPositions:[],
+  compassHeading:null, hasCompass:false,
+  geoWatch:null, geoOrigin:null,
+};
+
+// ══════════════════════════════════
+// VENUE SELECTION
+// ══════════════════════════════════
+let activeCat = 'all';
+
+function renderCategories() {
+  const el = document.getElementById('categories');
+  el.innerHTML = CATEGORIES.map(c =>
+    '<div class="cat-pill '+(c.id===activeCat?'active':'')+'" data-cat="'+c.id+'">'+c.icon+' '+c.label+'</div>'
+  ).join('');
+  el.querySelectorAll('.cat-pill').forEach(p => p.onclick = () => {
+    activeCat = p.dataset.cat;
+    renderCategories();
+    renderVenues();
+  });
+}
+
+function fmtDim(m) { return m >= 1000 ? (m/1000).toFixed(1)+'km' : m+'m'; }
+
+function renderVenues(filter) {
+  filter = (filter||'').toLowerCase();
+  const el = document.getElementById('venue-list');
+  const list = VENUES.filter(v => {
+    if (activeCat !== 'all' && v.cat !== activeCat) return false;
+    if (filter && !v.name.toLowerCase().includes(filter) && !v.loc.toLowerCase().includes(filter)) return false;
+    return true;
+  });
+
+  let html = '';
+  for (const v of list) {
+    html += '<div class="venue-card" data-id="'+v.id+'">'
+      + '<div class="venue-emoji" style="background:'+v.color+'22">'+v.emoji+'</div>'
+      + '<div class="venue-info">'
+      + '<div class="venue-name">'+v.name+'</div>'
+      + '<div class="venue-location">'+v.loc+'</div>'
+      + '<span class="venue-dims">'+fmtDim(v.w)+' × '+fmtDim(v.h)+'</span>'
+      + '</div>'
+      + '<div class="venue-arrow">›</div>'
+      + '</div>';
+  }
+  html += '<div class="custom-venue-btn" id="open-custom">'
+    + '<div class="icon">＋</div>'
+    + '<div class="label">Custom Area</div>'
+    + '<div class="sub">Define your own space with exact dimensions</div>'
+    + '</div>';
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('.venue-card').forEach(c => c.onclick = () => {
+    const v = VENUES.find(x => x.id === c.dataset.id);
+    if (v) openMap(v);
+  });
+  const cb = document.getElementById('open-custom');
+  if (cb) cb.onclick = () => document.getElementById('custom-modal').classList.remove('hidden');
+}
+
+document.getElementById('venue-search').oninput = e => renderVenues(e.target.value);
+document.getElementById('c-cancel').onclick = () => document.getElementById('custom-modal').classList.add('hidden');
+document.getElementById('c-create').onclick = () => {
+  const name = document.getElementById('c-name').value || 'My Area';
+  const w = parseInt(document.getElementById('c-width').value) || 500;
+  const h = parseInt(document.getElementById('c-height').value) || 300;
+  document.getElementById('custom-modal').classList.add('hidden');
+  openMap({ id:'custom', name, loc:'Custom', cat:'custom', w, h, emoji:'📍', color:'#38bdf8' });
+};
+
+renderCategories();
+renderVenues();
+
+// ══════════════════════════════════
+// MAP SCREEN
+// ══════════════════════════════════
+function openMap(venue) {
+  S.venue = venue;
+  S.phase = 'locate';
+  S.userPos = null;
+  S.savedPos = null;
+  S.lastPositions = [];
+
+  document.getElementById('screen-venue').classList.add('hidden');
+  document.getElementById('screen-map').classList.remove('hidden');
+  document.getElementById('map-vname').textContent = venue.name;
+  document.getElementById('map-vdims').textContent = fmtDim(venue.w) + ' × ' + fmtDim(venue.h);
+  document.getElementById('ribbon-text').textContent = 'tap to place yourself on the map';
+  document.getElementById('ribbon-value').style.display = 'none';
+  document.getElementById('r-dot').className = 'ribbon-dot blue';
+  document.getElementById('saved-bar').classList.remove('visible');
+  document.getElementById('btn-mark').disabled = true;
+
+  setPhase('locate');
+  initCanvas();
+  tryGPS();
+}
+
+document.getElementById('btn-back').onclick = () => {
+  document.getElementById('screen-map').classList.add('hidden');
+  document.getElementById('screen-venue').classList.remove('hidden');
+  if (S.animId) cancelAnimationFrame(S.animId);
+  if (S.geoWatch) { navigator.geolocation.clearWatch(S.geoWatch); S.geoWatch = null; }
+};
+
+// ── Canvas ──
+function initCanvas() {
+  if (S.animId) cancelAnimationFrame(S.animId);
+  const c = document.getElementById('venue-canvas');
+  S.canvas = c;
+  S.ctx = c.getContext('2d');
+  resize();
+  window.onresize = resize;
+
+  S.cam.zoom = Math.min(S.canvasW / (S.venue.w + 100), S.canvasH / (S.venue.h + 100)) * 0.82;
+  S.cam.x = 0; S.cam.y = 0;
+
+  c.onpointerdown = pdDown;
+  c.onpointermove = pdMove;
+  c.onpointerup = c.onpointercancel = pdUp;
+  c.onwheel = e => { e.preventDefault(); S.cam.zoom = clamp(S.cam.zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.05, 30); };
+  c.ontouchstart = tStart;
+  c.ontouchmove = tMove;
+  c.ontouchend = tEnd;
+
+  drawLoop();
+}
+
+function resize() {
+  const c = S.canvas;
+  const dpr = window.devicePixelRatio || 1;
+  const r = c.getBoundingClientRect();
+  c.width = r.width * dpr;
+  c.height = r.height * dpr;
+  S.ctx.setTransform(dpr,0,0,dpr,0,0);
+  S.canvasW = r.width;
+  S.canvasH = r.height;
+}
+
+function clamp(v,a,b) { return Math.max(a, Math.min(b, v)); }
+function m2s(mx,my) { return [S.canvasW/2+(mx-S.cam.x)*S.cam.zoom, S.canvasH/2+(my-S.cam.y)*S.cam.zoom]; }
+function s2m(sx,sy) { return [(sx-S.canvasW/2)/S.cam.zoom+S.cam.x, (sy-S.canvasH/2)/S.cam.zoom+S.cam.y]; }
+
+// ── Pointer input ──
+const ptrs = new Map();
+function pdDown(e) {
+  ptrs.set(e.pointerId, {x:e.clientX,y:e.clientY});
+  if (ptrs.size===1) { S.dragging=true; S.dragStart={x:e.clientX,y:e.clientY}; S.camStart={x:S.cam.x,y:S.cam.y}; S.dragMoved=false; }
+}
+function pdMove(e) {
+  ptrs.set(e.pointerId, {x:e.clientX,y:e.clientY});
+  if (S.dragging && ptrs.size===1) {
+    const dx=e.clientX-S.dragStart.x, dy=e.clientY-S.dragStart.y;
+    if (Math.abs(dx)+Math.abs(dy)>5) S.dragMoved=true;
+    S.cam.x=S.camStart.x-dx/S.cam.zoom;
+    S.cam.y=S.camStart.y-dy/S.cam.zoom;
+  }
+}
+function pdUp(e) {
+  const wasDrag = S.dragMoved;
+  ptrs.delete(e.pointerId);
+  if (ptrs.size===0) {
+    S.dragging=false;
+    if (!wasDrag) {
+      const r = S.canvas.getBoundingClientRect();
+      const [mx,my] = s2m(e.clientX-r.left, e.clientY-r.top);
+      const hx=S.venue.w/2, hy=S.venue.h/2;
+      if (mx >= -hx && mx <= hx && my >= -hy && my <= hy) {
+        setUserPos(mx, my);
+      }
+    }
+  }
+  S.pinchDist=null;
+}
+
+function tStart(e) {
+  if (e.touches.length===2) {
+    e.preventDefault();
+    const dx=e.touches[1].clientX-e.touches[0].clientX, dy=e.touches[1].clientY-e.touches[0].clientY;
+    S.pinchDist=Math.hypot(dx,dy); S.pinchZoom=S.cam.zoom;
+  }
+}
+function tMove(e) {
+  if (e.touches.length===2 && S.pinchDist) {
+    e.preventDefault();
+    const dx=e.touches[1].clientX-e.touches[0].clientX, dy=e.touches[1].clientY-e.touches[0].clientY;
+    S.cam.zoom = clamp(S.pinchZoom*(Math.hypot(dx,dy)/S.pinchDist), 0.05, 30);
+  }
+}
+function tEnd(e) { if (e.touches.length<2) S.pinchDist=null; }
+
+// ── GPS ──
+function tryGPS() {
+  if (!navigator.geolocation) return;
+  S.geoOrigin = null;
+  S.geoWatch = navigator.geolocation.watchPosition(pos => {
+    const {latitude,longitude,accuracy} = pos.coords;
+    if (!S.geoOrigin) S.geoOrigin = {lat:latitude, lng:longitude};
+    const mx = (longitude-S.geoOrigin.lng)*111320*Math.cos(S.geoOrigin.lat*Math.PI/180);
+    const my = -(latitude-S.geoOrigin.lat)*110540;
+    setUserPos(clamp(mx,-S.venue.w/2,S.venue.w/2), clamp(my,-S.venue.h/2,S.venue.h/2));
+    document.getElementById('ribbon-text').textContent = 'GPS ±'+(accuracy<10?accuracy.toFixed(1):Math.round(accuracy))+'m';
+    document.getElementById('r-dot').className = 'ribbon-dot '+(accuracy<5?'green':'blue');
+  }, ()=>{}, {enableHighAccuracy:true, maximumAge:0, timeout:8000});
+}
+
+function setUserPos(x,y) {
+  S.userPos = {x,y};
+  document.getElementById('btn-mark').disabled = false;
+  S.lastPositions.push({x,y,t:Date.now()});
+  if (S.lastPositions.length>12) S.lastPositions.shift();
+
+  if (!S.geoOrigin) {
+    document.getElementById('ribbon-text').textContent = 'Position set';
+    document.getElementById('ribbon-value').style.display = 'inline';
+    document.getElementById('ribbon-value').textContent = x.toFixed(1)+', '+y.toFixed(1)+'m';
+  }
+  if (S.phase==='nav') updateNav();
+}
+
+// ── Phase ──
+function setPhase(p) {
+  S.phase = p;
+  document.getElementById('map-panel').className = 'phase-'+(p==='nav'?'nav':p==='marked'?'marked':'locate');
+  const hud = document.getElementById('nav-hud');
+  if (p==='nav') { hud.classList.add('active'); initCompass(); }
+  else { hud.classList.remove('active'); document.getElementById('arrived').classList.remove('show'); }
+}
+
+document.getElementById('btn-mark').onclick = () => {
+  if (!S.userPos) return;
+  S.savedPos = {...S.userPos};
+  document.getElementById('saved-bar').classList.add('visible');
+  document.getElementById('saved-detail').textContent = S.savedPos.x.toFixed(1)+', '+S.savedPos.y.toFixed(1)+'m';
+  setPhase('marked');
+};
+document.getElementById('btn-nav').onclick = () => setPhase('nav');
+document.getElementById('btn-clear').onclick = () => {
+  S.savedPos=null;
+  document.getElementById('saved-bar').classList.remove('visible');
+  setPhase('locate');
+};
+document.getElementById('btn-stop').onclick = () => setPhase('marked');
+
+// ── Compass ──
+function initCompass() {
+  const h = e => {
+    let v=null;
+    if (e.webkitCompassHeading!==undefined) v=e.webkitCompassHeading;
+    else if (e.alpha!==null) v=(360-e.alpha)%360;
+    if (v!==null) { S.compassHeading=v; S.hasCompass=true; }
+  };
+  if (typeof DeviceOrientationEvent!=='undefined' && DeviceOrientationEvent.requestPermission) {
+    DeviceOrientationEvent.requestPermission().then(p=>{if(p==='granted')window.addEventListener('deviceorientation',h,true)}).catch(()=>{});
+  } else { window.addEventListener('deviceorientation',h,true); }
+}
+
+function updateNav() {
+  if (!S.userPos||!S.savedPos) return;
+  const dx=S.savedPos.x-S.userPos.x, dy=S.savedPos.y-S.userPos.y;
+  const dist=Math.hypot(dx,dy);
+
+  const el=document.getElementById('nav-dist');
+  if (dist<1) el.innerHTML=(dist*100).toFixed(0)+'<span class="u"> cm</span>';
+  else if (dist<1000) el.innerHTML=dist.toFixed(1)+'<span class="u"> m</span>';
+  else el.innerHTML=(dist/1000).toFixed(2)+'<span class="u"> km</span>';
+
+  const targetAngle = Math.atan2(dx,-dy)*180/Math.PI;
+  let arrowAngle = targetAngle;
+  const hint = document.getElementById('nav-hint');
+
+  if (S.hasCompass) {
+    arrowAngle = targetAngle - S.compassHeading;
+    hint.textContent = 'follow the arrow';
+  } else {
+    const lp=S.lastPositions;
+    if (lp.length>=2) {
+      const a=lp[lp.length-1], b=lp[Math.max(0,lp.length-4)];
+      if (Math.hypot(a.x-b.x,a.y-b.y)>0.3) {
+        arrowAngle = targetAngle - Math.atan2(a.x-b.x,-(a.y-b.y))*180/Math.PI;
+        hint.textContent = 'follow the arrow';
+      } else { hint.textContent = 'tap to simulate moving'; }
+    }
+  }
+  document.getElementById('arrow').style.transform = 'translate(-50%,-100%) rotate('+arrowAngle+'deg)';
+
+  document.getElementById('r-dot').className = 'ribbon-dot orange';
+  document.getElementById('ribbon-text').textContent = dist.toFixed(1)+'m to spot';
+  document.getElementById('ribbon-value').style.display = 'none';
+
+  if (dist<3) { document.getElementById('arrived').classList.add('show'); hint.textContent="you're here!"; }
+  else { document.getElementById('arrived').classList.remove('show'); }
+}
+
+// ══════════════════════════════════
+// DRAWING
+// ══════════════════════════════════
+function drawLoop() { draw(); S.animId=requestAnimationFrame(drawLoop); }
+
+function draw() {
+  const ctx=S.ctx, W=S.canvasW, H=S.canvasH;
+  if (!W||!S.venue) return;
+  const v=S.venue, z=S.cam.zoom;
+
+  ctx.fillStyle='#06080c';
+  ctx.fillRect(0,0,W,H);
+
+  // Dynamic grid spacing
+  const pxPerM=z;
+  let gridM=100;
+  if(pxPerM>6) gridM=5;
+  else if(pxPerM>3) gridM=10;
+  else if(pxPerM>1.2) gridM=25;
+  else if(pxPerM>0.4) gridM=50;
+  else if(pxPerM>0.12) gridM=100;
+  else gridM=250;
+
+  const [vl,vt]=m2s(-v.w/2,-v.h/2);
+  const [vr,vb]=m2s(v.w/2,v.h/2);
+
+  // Venue fill
+  ctx.fillStyle='#0b0e14';
+  ctx.beginPath();
+  roundRect(ctx, vl,vt,vr-vl,vb-vt, 4*z > 8 ? 8 : Math.max(2,4*z));
+  ctx.fill();
+
+  // Grid
+  ctx.strokeStyle='#141922';
+  ctx.lineWidth=1;
+  const sx0=Math.ceil(-v.w/2/gridM)*gridM;
+  const sy0=Math.ceil(-v.h/2/gridM)*gridM;
+  for (let mx=sx0; mx<=v.w/2; mx+=gridM) {
+    const [sx]=m2s(mx,0);
+    if(sx<vl||sx>vr) continue;
+    ctx.beginPath(); ctx.moveTo(sx,vt); ctx.lineTo(sx,vb); ctx.stroke();
+  }
+  for (let my=sy0; my<=v.h/2; my+=gridM) {
+    const [,sy]=m2s(0,my);
+    if(sy<vt||sy>vb) continue;
+    ctx.beginPath(); ctx.moveTo(vl,sy); ctx.lineTo(vr,sy); ctx.stroke();
+  }
+
+  // Venue border
+  ctx.strokeStyle='#262d3d';
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  roundRect(ctx, vl,vt,vr-vl,vb-vt, 4*z > 8 ? 8 : Math.max(2,4*z));
+  ctx.stroke();
+
+  // Grid labels
+  ctx.font='10px "DM Mono",monospace';
+  ctx.fillStyle='#2a3244';
+  ctx.textAlign='center';
+  for (let mx=sx0; mx<=v.w/2; mx+=gridM) {
+    if (!mx) continue;
+    const [sx]=m2s(mx,-v.h/2);
+    if(sx>vl+20&&sx<vr-20) ctx.fillText((mx>0?'+':'')+mx+'m', sx, Math.max(vt-6, 14));
+  }
+  ctx.textAlign='right';
+  for (let my=sy0; my<=v.h/2; my+=gridM) {
+    if (!my) continue;
+    const [,sy]=m2s(0,my);
+    if(sy>vt+10&&sy<vb-10) ctx.fillText((my>0?'+':'')+my+'m', Math.max(vl-8, 40), sy+4);
+  }
+
+  // Center crosshair
+  const [ox,oy]=m2s(0,0);
+  ctx.strokeStyle='#1a2030';
+  ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(Math.max(vl,0),oy); ctx.lineTo(Math.min(vr,W),oy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ox,Math.max(vt,0)); ctx.lineTo(ox,Math.min(vb,H)); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Nav line
+  if (S.phase==='nav'&&S.userPos&&S.savedPos) {
+    const [ax,ay]=m2s(S.userPos.x,S.userPos.y);
+    const [bx,by]=m2s(S.savedPos.x,S.savedPos.y);
+    ctx.strokeStyle='rgba(56,189,248,0.35)';
+    ctx.lineWidth=2.5;
+    ctx.setLineDash([10,7]);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Saved spot
+  if (S.savedPos) {
+    const [sx,sy]=m2s(S.savedPos.x,S.savedPos.y);
+    const g=ctx.createRadialGradient(sx,sy,0,sx,sy,28);
+    g.addColorStop(0,'rgba(74,222,128,0.25)'); g.addColorStop(1,'rgba(74,222,128,0)');
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(sx,sy,28,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#4ade80'; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(sx,sy,10,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#4ade80';
+    ctx.beginPath(); ctx.arc(sx,sy,4,0,Math.PI*2); ctx.fill();
+    ctx.font='600 10px "Outfit",sans-serif';
+    ctx.fillStyle='#4ade80'; ctx.textAlign='center';
+    ctx.fillText('YOUR SPOT',sx,sy-17);
+  }
+
+  // User
+  if (S.userPos) {
+    const [ux,uy]=m2s(S.userPos.x,S.userPos.y);
+    const t=Date.now()/1000;
+    const pulse=(Math.sin(t*3)+1)/2;
+    const pr=14+pulse*10;
+    ctx.strokeStyle='rgba(56,189,248,'+(0.3-pulse*0.25)+')';
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(ux,uy,pr,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#38bdf8';
+    ctx.beginPath(); ctx.arc(ux,uy,7,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff';
+    ctx.beginPath(); ctx.arc(ux,uy,3,0,Math.PI*2); ctx.fill();
+    ctx.font='600 10px "Outfit",sans-serif';
+    ctx.fillStyle='#38bdf8'; ctx.textAlign='center';
+    ctx.fillText('YOU',ux,uy-16);
+  }
+
+  // Scale bar
+  const scalePx=gridM*z;
+  if (scalePx>20 && scalePx<W*0.5) {
+    const bx=W-20, by=H-24;
+    ctx.strokeStyle='#3a4358'; ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(bx-scalePx,by); ctx.lineTo(bx,by);
+    ctx.moveTo(bx-scalePx,by-4); ctx.lineTo(bx-scalePx,by+4);
+    ctx.moveTo(bx,by-4); ctx.lineTo(bx,by+4);
+    ctx.stroke();
+    ctx.font='10px "DM Mono",monospace';
+    ctx.fillStyle='#3a4358'; ctx.textAlign='center';
+    ctx.fillText(gridM>=1000?(gridM/1000)+'km':gridM+'m', bx-scalePx/2, by-8);
+  }
+
+  // Compass
+  const cx2=36, cy2=H-40;
+  ctx.save(); ctx.translate(cx2,cy2);
+  ctx.strokeStyle='#2a3244'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(0,14); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-14,0); ctx.lineTo(14,0); ctx.stroke();
+  ctx.fillStyle='#f87171';
+  ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(-3.5,-7); ctx.lineTo(3.5,-7); ctx.closePath(); ctx.fill();
+  ctx.font='bold 8px "DM Mono",monospace';
+  ctx.fillStyle='#4a5568'; ctx.textAlign='center';
+  ctx.fillText('N',0,-19);
+  ctx.restore();
+}
+
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+</script>
+</body>
+</html>
