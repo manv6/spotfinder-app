@@ -6,6 +6,11 @@ A zero-dependency, mobile-first web app for marking your location at large venue
 
 ![SpotFinder](https://img.shields.io/badge/version-1.0.0-38bdf8) ![License](https://img.shields.io/badge/license-MIT-4ade80) ![Dependencies](https://img.shields.io/badge/dependencies-0-a78bfa)
 
+> 📱 **Native version:** a React Native / Expo app lives in [`mobile/`](./mobile).
+> It drops the venue picker for a **real map** (react-native-maps) — mark your live
+> GPS spot, walk away, and navigate back with a compass arrow + live distance.
+> See [mobile/README.md](./mobile/README.md) to run it on a device or simulator.
+
 ---
 
 ## 🎯 The Problem
