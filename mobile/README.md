@@ -27,6 +27,12 @@ npx expo run:ios       # or: npx expo run:android
 
 Typecheck: `npx tsc --noEmit`
 
+## Shipping to the stores
+
+See **[SHIPPING.md](./SHIPPING.md)** for the full App Store / Google Play walkthrough
+— accounts and costs, EAS build + submit, store listing requirements, and the three
+blockers in this repo that must be cleared before a store build will succeed.
+
 **iOS** uses Apple Maps and needs no API key. **Android** uses Google Maps — add a
 Maps SDK key to `app.json` (`android.config.googleMaps.apiKey`) before building there.
 
