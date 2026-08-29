@@ -31,7 +31,9 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
     },
     "plugins": [
       [
@@ -40,6 +42,9 @@
           "locationWhenInUsePermission": "SpotFinder uses your location to place you on the venue map and guide you back to your saved spot."
         }
       ]
-    ]
+    ],
+    "experiments": {
+      "baseUrl": "/spotfinder-app"
+    }
   }
 }
