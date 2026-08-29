@@ -27,6 +27,38 @@ npx expo run:ios       # or: npx expo run:android
 
 Typecheck: `npx tsc --noEmit`
 
+## Deploying the web build
+
+The web export is a static SPA. `npm run build` writes it to `dist/`; `node server.js`
+serves that on `$PORT`.
+
+**The one thing to get right is the base path.** Asset URLs are baked in at build
+time, so it's set by `EXPO_BASE_URL` at build time (see `app.config.js`) — a wrong
+value doesn't fail the build, it just 404s every asset:
+
+| Target | Served at | `EXPO_BASE_URL` |
+|---|---|---|
+| GitHub Pages | `/spotfinder-app` | `/spotfinder-app` (set in the workflow) |
+| Railway / any root domain | `/` | leave unset |
+
+### GitHub Pages
+
+Automatic — `.github/workflows/deploy-web.yml` rebuilds on every push to `master`
+that touches `mobile/`.
+
+### Railway
+
+`railpack.json` sets the start command. Because the app lives in `mobile/` and not
+at the repo root, you must point the service at it:
+
+> Railway → your service → **Settings** → **Source** → set **Root Directory** to `mobile`
+
+Without that, Railpack inspects the repo root, finds no recognizable app, and fails
+with *"Railpack could not determine how to build the app."* Everything else is
+detected from `mobile/package.json`: `npm ci` → `npm run build` → `node server.js`.
+
+Leave `EXPO_BASE_URL` unset there so assets resolve at the domain root.
+
 ## Shipping to the stores
 
 See **[SHIPPING.md](./SHIPPING.md)** for the full App Store / Google Play walkthrough

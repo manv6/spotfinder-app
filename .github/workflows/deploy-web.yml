@@ -35,7 +35,11 @@ jobs:
 
       - run: npm ci
 
+      # Pages serves this project under /spotfinder-app, not the domain root.
+      # Railway serves at the root and so leaves EXPO_BASE_URL unset.
       - run: npx expo export -p web
+        env:
+          EXPO_BASE_URL: /spotfinder-app
 
       # _expo/ would be stripped by Jekyll; Pages skips it entirely with this file.
       - run: touch dist/.nojekyll
