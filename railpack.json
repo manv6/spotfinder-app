@@ -2,6 +2,6 @@
   "$schema": "https://schema.railpack.com",
   "provider": "node",
   "deploy": {
-    "startCommand": "node server.js"
+    "startCommand": "node mobile/server.js"
   }
 }

@@ -102,6 +102,8 @@ spotfinder-app/
 │   ├── SHIPPING.md         # App Store / Play Store guide
 │   └── README.md
 ├── legacy/index.html       # the original v1.0 canvas app (not deployed)
+├── package.json            # root build entrypoint (Railway builds from here)
+├── railpack.json           # Railway/Railpack provider + start command
 └── .github/workflows/
     └── deploy-web.yml      # builds mobile/ for web → GitHub Pages
 ```

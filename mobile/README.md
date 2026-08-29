@@ -48,16 +48,23 @@ that touches `mobile/`.
 
 ### Railway
 
-`railpack.json` sets the start command. Because the app lives in `mobile/` and not
-at the repo root, you must point the service at it:
+Deploys from the repo root with no service configuration. Railpack builds from the
+root of the repo, where there is no app — so the root carries a thin entrypoint that
+delegates here:
 
-> Railway → your service → **Settings** → **Source** → set **Root Directory** to `mobile`
+```
+package.json     build: cd mobile && npm ci && npm run build
+                 start: node mobile/server.js
+railpack.json    provider + startCommand
+```
 
-Without that, Railpack inspects the repo root, finds no recognizable app, and fails
-with *"Railpack could not determine how to build the app."* Everything else is
-detected from `mobile/package.json`: `npm ci` → `npm run build` → `node server.js`.
+`server.js` resolves `dist/` relative to its own file, so it serves `mobile/dist`
+no matter which directory it is started from.
 
-Leave `EXPO_BASE_URL` unset there so assets resolve at the domain root.
+Leave `EXPO_BASE_URL` unset so assets resolve at the domain root.
+
+> Setting the service's **Root Directory** to `mobile` also works, and skips the
+> root entrypoint entirely. It just isn't required.
 
 ## Shipping to the stores
 
