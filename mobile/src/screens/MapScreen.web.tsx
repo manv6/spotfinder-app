@@ -24,18 +24,11 @@ function rasterStyle(tiles: string[], attribution: string): maplibregl.StyleSpec
   };
 }
 
-const STYLES: Record<MapStyle, maplibregl.StyleSpecification | string> = {
-  simple: rasterStyle(
-    ['a', 'b', 'c'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`),
-    '© OpenStreetMap © CARTO',
-  ),
-  satellite: rasterStyle(
-    ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-    'Tiles © Esri',
-  ),
-  // Vector street style with real building geometry — keyless, no signup.
-  '3d': 'https://tiles.openfreemap.org/styles/liberty',
-};
+const DARK = rasterStyle(['a', 'b', 'c'].map((s) => `https://${s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png`), '© OpenStreetMap © CARTO');
+const SATELLITE = rasterStyle(['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], 'Tiles © Esri');
+// Web 3D = the reliably-rendering dark raster base + camera tilt. Keyless VECTOR building
+// tiles don't render under Expo's Metro web bundler; the iOS app uses Apple Maps' real 3D.
+const STYLES: Record<MapStyle, maplibregl.StyleSpecification> = { simple: DARK, satellite: SATELLITE, '3d': DARK };
 
 function lineFC(a: LatLng, b: LatLng): GeoJSON.FeatureCollection {
   return {
@@ -138,22 +131,6 @@ export default function MapScreen() {
     if (!map.getSource('nav')) map.addSource('nav', { type: 'geojson', data: EMPTY });
     if (!map.getLayer('nav-line'))
       map.addLayer({ id: 'nav-line', type: 'line', source: 'nav', layout: { 'line-cap': 'round' }, paint: { 'line-color': colors.accent, 'line-width': 4, 'line-dasharray': [1.5, 1] } });
-    // Extruded buildings for the 3D vector style.
-    if (map.getSource('openmaptiles') && !map.getLayer('3d-buildings')) {
-      map.addLayer({
-        id: '3d-buildings',
-        source: 'openmaptiles',
-        'source-layer': 'building',
-        type: 'fill-extrusion',
-        minzoom: 14,
-        paint: {
-          'fill-extrusion-color': '#2b3446',
-          'fill-extrusion-height': ['coalesce', ['get', 'render_height'], ['get', 'height'], 8],
-          'fill-extrusion-base': ['coalesce', ['get', 'render_min_height'], 0],
-          'fill-extrusion-opacity': 0.85,
-        },
-      });
-    }
   };
 
   const pushData = () => {
@@ -194,22 +171,31 @@ export default function MapScreen() {
     }
   }, [coords]);
 
-  // React to map-style changes: swap style, re-add layers, tilt for 3D.
+  // React to map-style changes. Only reload tiles when the base changes (simple ↔ 3d
+  // share the dark base — we just tilt the camera).
+  const currentBase = useRef<'dark' | 'esri'>('dark');
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     if (firstStyleRun.current) {
       firstStyleRun.current = false;
-      if (mapStyle === 'simple') return; // already the initial style
+      return; // initial 'simple' already applied by init
     }
-    styleReady.current = false;
-    map.setStyle(STYLES[mapStyle]);
-    map.once('style.load', () => {
-      styleReady.current = true;
-      addDataLayers(map);
-      pushData();
-      map.easeTo({ pitch: mapStyle === '3d' ? 60 : 0, duration: 500 });
-    });
+    const pitch = mapStyle === '3d' ? 60 : 0;
+    const base = mapStyle === 'satellite' ? 'esri' : 'dark';
+    if (base !== currentBase.current) {
+      currentBase.current = base;
+      styleReady.current = false;
+      map.setStyle(STYLES[mapStyle]);
+      map.once('style.load', () => {
+        styleReady.current = true;
+        addDataLayers(map);
+        pushData();
+        map.easeTo({ pitch, duration: 500 });
+      });
+    } else {
+      map.easeTo({ pitch, duration: 500 });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapStyle]);
 
